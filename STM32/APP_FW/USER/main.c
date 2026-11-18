@@ -15,7 +15,6 @@ int main(void)
     Board_Init();
     (void)Board_ADC_Init();
     Board_I2C1_Init();
-    Board_UART1_Init(115200UL);
 
     App_CreateTasks();
     vTaskStartScheduler();

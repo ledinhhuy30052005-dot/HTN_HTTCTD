@@ -65,7 +65,6 @@ typedef enum
 extern QueueHandle_t g_buttonQueue;
 extern QueueHandle_t g_sensorQueue;
 extern QueueHandle_t g_configSaveQueue;
-extern QueueHandle_t g_uartRxQueue;
 extern SemaphoreHandle_t g_configMutex;
 extern SemaphoreHandle_t g_i2cMutex;
 extern volatile uint8_t g_configSaveState; /* 0 idle, 1 saving, 2 success, 3 error */

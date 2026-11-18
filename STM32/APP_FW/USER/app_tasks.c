@@ -13,7 +13,6 @@
 #include "queue.h"
 #include "semphr.h"
 #include "misc.h"
-#include "stm32f10x_usart.h"
 #include <string.h>
 #include <stdio.h>
 
@@ -23,12 +22,11 @@ static void ControlTask(void *argument);
 static void ButtonTask(void *argument);
 static void UITask(void *argument);
 static void ConfigTask(void *argument);
-static void CommTask(void *argument);
 static void HealthTask(void *argument);
 
 /* Heartbeats are updated by each task. HealthTask requests a safe reset if a task
  * stops making progress for several seconds (for example, after a driver/stack fault). */
-enum { HB_SENSOR = 0, HB_CONTROL, HB_BUTTON, HB_UI, HB_CONFIG, HB_COMM, HB_COUNT };
+enum { HB_SENSOR = 0, HB_CONTROL, HB_BUTTON, HB_UI, HB_CONFIG, HB_COUNT };
 static volatile uint32_t s_taskHeartbeat[HB_COUNT] = {0U};
 
 void App_CreateTasks(void)
@@ -38,12 +36,11 @@ void App_CreateTasks(void)
     g_buttonQueue = xQueueCreate(8U, sizeof(ButtonEvent_t));
     g_sensorQueue = xQueueCreate(1U, sizeof(SensorData_t));
     g_configSaveQueue = xQueueCreate(1U, sizeof(AppConfig_t));
-    g_uartRxQueue = xQueueCreate(96U, sizeof(uint8_t));
     g_configMutex = xSemaphoreCreateMutex();
     g_i2cMutex = xSemaphoreCreateMutex();
 
     if ((g_buttonQueue == NULL) || (g_sensorQueue == NULL) ||
-        (g_configSaveQueue == NULL) || (g_uartRxQueue == NULL) ||
+        (g_configSaveQueue == NULL) ||
         (g_configMutex == NULL) || (g_i2cMutex == NULL))
     {
         Board_AllRelaysOff();
@@ -58,8 +55,9 @@ void App_CreateTasks(void)
     ConfigStore_Load(&initialConfig);
     AppConfig_SetActive(&initialConfig);
 
-    /* Driver initialisation which uses I2C occurs from SensorTask/UITask after scheduler starts. */
-    Board_UART1_EnableRxInterrupt();
+    /* I2C device drivers are used by SensorTask/UITask after the scheduler starts.
+     * Application UART communication is intentionally disabled: OTA is entered by
+     * manually resetting STM32 and sending firmware to the bootloader from ESP32. */
 
     /* Stack sizes are in StackType_t words (4 bytes on Cortex-M3). UI uses snprintf
      * and OLED/I2C call chains, so give it a larger stack to avoid intermittent overflow. */
@@ -68,7 +66,6 @@ void App_CreateTasks(void)
         xTaskCreate(ButtonTask, "Buttons", 192U, NULL, 2U, NULL) != pdPASS ||
         xTaskCreate(UITask, "OLED_Menu", 640U, NULL, 1U, NULL) != pdPASS ||
         xTaskCreate(ConfigTask, "Config", 320U, NULL, 2U, NULL) != pdPASS ||
-        xTaskCreate(CommTask, "UART_OTA", 320U, NULL, 2U, NULL) != pdPASS ||
         xTaskCreate(HealthTask, "Health", 192U, NULL, 4U, NULL) != pdPASS)
     {
         Board_AllRelaysOff();
@@ -709,62 +706,6 @@ static void UITask(void *argument)
     }
 }
 
-static void CommTask(void *argument)
-{
-    uint8_t ch;
-    char line[24];
-    uint8_t pos = 0U;
-    TickType_t lastTelemetry = 0U;
-    SensorData_t sensor;
-    (void)argument;
-    Board_UART1_SendString("APP_READY\r\n");
-    memset(line, 0, sizeof(line));
-    for (;;)
-    {
-        s_taskHeartbeat[HB_COMM]++;
-        if (xQueueReceive(g_uartRxQueue, &ch, pdMS_TO_TICKS(100U)) == pdTRUE)
-        {
-            if (ch == '\r' || ch == '\n')
-            {
-                line[pos] = '\0';
-                if (strcmp(line, "OTA_REQ") == 0 || strcmp(line, "OTA") == 0)
-                {
-                    Board_AllRelaysOff();
-                    Board_SetBuzzer(0U);
-                    Board_UART1_SendString("OTA_ACK\r\n");
-                    vTaskDelay(pdMS_TO_TICKS(250U));
-                    NVIC_SystemReset();
-                }
-                pos = 0U;
-                line[0] = '\0';
-            }
-            else if (ch >= 32U && ch <= 126U)
-            {
-                if (pos < (sizeof(line) - 1U)) line[pos++] = (char)ch;
-                else { pos = 0U; line[0] = '\0'; }
-            }
-            else
-            {
-                /* Binary OTA packet sent while App is active is not a command.
-                 * ESP32 should first send OTA_REQ and wait for reset/bootloader. */
-                pos = 0U;
-                line[0] = '\0';
-            }
-        }
-        if ((xTaskGetTickCount() - lastTelemetry) >= pdMS_TO_TICKS(2000U))
-        {
-            if (xQueuePeek(g_sensorQueue, &sensor, 0U) == pdTRUE)
-            {
-                char out[80];
-                (void)snprintf(out, sizeof(out), "STAT,SOIL=%u,TEMP=%d,WATER=%u,PUMP=%u\r\n",
-                    sensor.soilPercent, (int)sensor.temperatureC, sensor.waterOK, g_pumpOn);
-                Board_UART1_SendString(out);
-            }
-            lastTelemetry = xTaskGetTickCount();
-        }
-    }
-}
-
 /* A small software supervisor catches tasks that get stuck waiting in a driver.
  * It does not replace an independent watchdog for a total CPU/clock failure, but it
  * can recover from a single application task that stops progressing. */
@@ -798,17 +739,4 @@ static void HealthTask(void *argument)
             }
         }
     }
-}
-
-/* USART1 RX interrupt: move bytes to a queue; never parse commands in ISR. */
-void USART1_IRQHandler(void)
-{
-    BaseType_t higherPriorityTaskWoken = pdFALSE;
-    if (USART_GetITStatus(USART1, USART_IT_RXNE) != RESET)
-    {
-        uint8_t value = (uint8_t)USART_ReceiveData(USART1);
-        if (g_uartRxQueue != NULL)
-            (void)xQueueSendFromISR(g_uartRxQueue, &value, &higherPriorityTaskWoken);
-    }
-    portYIELD_FROM_ISR(higherPriorityTaskWoken);
 }

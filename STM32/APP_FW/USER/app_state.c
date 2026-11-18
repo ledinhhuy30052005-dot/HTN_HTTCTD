@@ -6,7 +6,6 @@
 QueueHandle_t g_buttonQueue = NULL;
 QueueHandle_t g_sensorQueue = NULL;
 QueueHandle_t g_configSaveQueue = NULL;
-QueueHandle_t g_uartRxQueue = NULL;
 SemaphoreHandle_t g_configMutex = NULL;
 SemaphoreHandle_t g_i2cMutex = NULL;
 volatile uint8_t g_configSaveState = 0U;

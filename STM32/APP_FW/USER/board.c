@@ -5,9 +5,7 @@
 #include "stm32f10x_adc.h"
 #include "stm32f10x_dma.h"
 #include "stm32f10x_i2c.h"
-#include "stm32f10x_usart.h"
 #include "stm32f10x_tim.h"
-#include "misc.h"
 
 static volatile uint16_t s_adcBuffer[4];
 static volatile uint8_t s_adcReady = 0U;
@@ -288,61 +286,4 @@ void Board_I2C1_Init(void)
     i.I2C_AcknowledgedAddress = I2C_AcknowledgedAddress_7bit;
     I2C_Init(I2C1, &i);
     I2C_Cmd(I2C1, ENABLE);
-}
-
-void Board_UART1_Init(uint32_t baud)
-{
-    GPIO_InitTypeDef g;
-    USART_InitTypeDef u;
-    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_USART1, ENABLE);
-
-    g.GPIO_Pin = GPIO_Pin_9;
-    g.GPIO_Speed = GPIO_Speed_50MHz;
-    g.GPIO_Mode = GPIO_Mode_AF_PP;
-    GPIO_Init(GPIOA, &g);
-    g.GPIO_Pin = GPIO_Pin_10;
-    g.GPIO_Mode = GPIO_Mode_IN_FLOATING;
-    GPIO_Init(GPIOA, &g);
-
-    USART_StructInit(&u);
-    u.USART_BaudRate = baud;
-    u.USART_WordLength = USART_WordLength_8b;
-    u.USART_StopBits = USART_StopBits_1;
-    u.USART_Parity = USART_Parity_No;
-    u.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
-    u.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;
-    USART_Init(USART1, &u);
-    USART_Cmd(USART1, ENABLE);
-}
-
-void Board_UART1_EnableRxInterrupt(void)
-{
-    NVIC_InitTypeDef n;
-    USART_ClearITPendingBit(USART1, USART_IT_RXNE);
-    n.NVIC_IRQChannel = USART1_IRQn;
-    n.NVIC_IRQChannelPreemptionPriority = 6U; /* FreeRTOS-safe priority */
-    n.NVIC_IRQChannelSubPriority = 0U;
-    n.NVIC_IRQChannelCmd = ENABLE;
-    NVIC_Init(&n);
-    USART_ITConfig(USART1, USART_IT_RXNE, ENABLE);
-}
-
-void Board_UART1_SendString(const char *s)
-{
-    uint32_t timeout;
-    if (s == 0) return;
-    while (*s != '\0')
-    {
-        timeout = 100000UL;
-        while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET)
-        {
-            if (timeout-- == 0U) return;
-        }
-        USART_SendData(USART1, (uint16_t)(uint8_t)*s++);
-    }
-    timeout = 100000UL;
-    while (USART_GetFlagStatus(USART1, USART_FLAG_TC) == RESET)
-    {
-        if (timeout-- == 0U) return;
-    }
 }
