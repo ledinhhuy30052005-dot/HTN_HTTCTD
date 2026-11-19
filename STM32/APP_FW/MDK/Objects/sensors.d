@@ -1,7 +1,7 @@
-.\objects\sensors.o: ..\USER\sensors.c
-.\objects\sensors.o: ..\USER\sensors.h
+.\objects\sensors.o: ..\config\sensors.c
+.\objects\sensors.o: ..\config\sensors.h
 .\objects\sensors.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdint.h
-.\objects\sensors.o: ..\USER\app_types.h
+.\objects\sensors.o: ..\config\app_types.h
 .\objects\sensors.o: .\freertos_add\include\FreeRTOS.h
 .\objects\sensors.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stddef.h
 .\objects\sensors.o: .\freertos_add\include\FreeRTOSConfig.h
@@ -40,8 +40,10 @@
 .\objects\sensors.o: .\freertos_add\include\mpu_wrappers.h
 .\objects\sensors.o: .\freertos_add\include\queue.h
 .\objects\sensors.o: .\freertos_add\include\semphr.h
-.\objects\sensors.o: ..\USER\app_config.h
-.\objects\sensors.o: ..\USER\board.h
-.\objects\sensors.o: ..\USER\dht11.h
-.\objects\sensors.o: ..\USER\bh1750.h
-.\objects\sensors.o: ..\USER\ds3231.h
+.\objects\sensors.o: ..\config\app_config.h
+.\objects\sensors.o: ..\config\analog_input.h
+.\objects\sensors.o: ..\config\soil_sensor.h
+.\objects\sensors.o: ..\config\water_sensor.h
+.\objects\sensors.o: ..\config\dht11.h
+.\objects\sensors.o: ..\config\bh1750.h
+.\objects\sensors.o: ..\config\ds3231.h

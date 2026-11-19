@@ -1,4 +1,4 @@
-.\objects\freertos_hooks.o: ..\USER\freertos_hooks.c
+.\objects\freertos_hooks.o: ..\config\freertos_hooks.c
 .\objects\freertos_hooks.o: .\freertos_add\include\FreeRTOS.h
 .\objects\freertos_hooks.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stddef.h
 .\objects\freertos_hooks.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdint.h
@@ -38,4 +38,6 @@
 .\objects\freertos_hooks.o: .\freertos_add\include\mpu_wrappers.h
 .\objects\freertos_hooks.o: .\freertos_add\include\task.h
 .\objects\freertos_hooks.o: .\freertos_add\include\list.h
-.\objects\freertos_hooks.o: ..\USER\board.h
+.\objects\freertos_hooks.o: ..\config\relay.h
+.\objects\freertos_hooks.o: ..\config\buzzer.h
+.\objects\freertos_hooks.o: ..\config\board.h

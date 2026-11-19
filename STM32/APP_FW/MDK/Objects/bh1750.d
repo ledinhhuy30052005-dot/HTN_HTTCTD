@@ -1,7 +1,7 @@
-.\objects\bh1750.o: ..\USER\bh1750.c
-.\objects\bh1750.o: ..\USER\bh1750.h
+.\objects\bh1750.o: ..\config\bh1750.c
+.\objects\bh1750.o: ..\config\bh1750.h
 .\objects\bh1750.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdint.h
-.\objects\bh1750.o: ..\USER\i2c_bus.h
+.\objects\bh1750.o: ..\config\i2c_bus.h
 .\objects\bh1750.o: .\freertos_add\include\FreeRTOS.h
 .\objects\bh1750.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stddef.h
 .\objects\bh1750.o: .\freertos_add\include\FreeRTOSConfig.h

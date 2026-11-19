@@ -1,7 +1,7 @@
-.\objects\oled.o: ..\USER\oled.c
-.\objects\oled.o: ..\USER\oled.h
+.\objects\oled.o: ..\config\oled.c
+.\objects\oled.o: ..\config\oled.h
 .\objects\oled.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdint.h
-.\objects\oled.o: ..\USER\i2c_bus.h
+.\objects\oled.o: ..\config\i2c_bus.h
 .\objects\oled.o: .\freertos_add\include\FreeRTOS.h
 .\objects\oled.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stddef.h
 .\objects\oled.o: .\freertos_add\include\FreeRTOSConfig.h

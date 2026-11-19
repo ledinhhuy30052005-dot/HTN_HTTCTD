@@ -1,5 +1,5 @@
-.\objects\board.o: ..\USER\board.c
-.\objects\board.o: ..\USER\board.h
+.\objects\board.o: ..\config\board.c
+.\objects\board.o: ..\config\board.h
 .\objects\board.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdint.h
 .\objects\board.o: .\Lib\CMSIS\CM3\DeviceSupport\ST\STM32F10x\stm32f10x.h
 .\objects\board.o: .\Lib\CMSIS\CM3\CoreSupport\core_cm3.h
@@ -29,4 +29,8 @@
 .\objects\board.o: .\Lib\STM32F10x_StdPeriph_Driver\inc\stm32f10x_usart.h
 .\objects\board.o: .\Lib\STM32F10x_StdPeriph_Driver\inc\stm32f10x_wwdg.h
 .\objects\board.o: .\Lib\STM32F10x_StdPeriph_Driver\inc\misc.h
-.\objects\board.o: ..\USER\app_config.h
+.\objects\board.o: ..\config\app_config.h
+.\objects\board.o: ..\config\button.h
+.\objects\board.o: ..\config\relay.h
+.\objects\board.o: ..\config\buzzer.h
+.\objects\board.o: ..\config\dht11.h

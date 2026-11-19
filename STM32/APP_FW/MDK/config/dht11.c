@@ -1,6 +1,7 @@
 #include "dht11.h"
 #include "board.h"
 #include "stm32f10x_gpio.h"
+#include "stm32f10x_rcc.h"
 #include "stm32f10x_tim.h"
 #include "FreeRTOS.h"
 #include "task.h"
@@ -37,6 +38,17 @@ static void dht_output_od(void)
     g.GPIO_Speed = GPIO_Speed_2MHz;
     g.GPIO_Mode = GPIO_Mode_Out_OD;
     GPIO_Init(DHT_PORT, &g);
+}
+
+void DHT11_Init(void)
+{
+    GPIO_InitTypeDef g;
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
+    g.GPIO_Pin = DHT_PIN;
+    g.GPIO_Speed = GPIO_Speed_2MHz;
+    g.GPIO_Mode = GPIO_Mode_Out_OD;
+    GPIO_Init(DHT_PORT, &g);
+    GPIO_SetBits(DHT_PORT, DHT_PIN);
 }
 
 /* DHT11 protocol: host holds DATA low for at least 18 ms; 40 bits contain

@@ -1,7 +1,7 @@
-.\objects\config_store.o: ..\USER\config_store.c
-.\objects\config_store.o: ..\USER\config_store.h
+.\objects\config_store.o: ..\config\config_store.c
+.\objects\config_store.o: ..\config\config_store.h
 .\objects\config_store.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdint.h
-.\objects\config_store.o: ..\USER\app_types.h
+.\objects\config_store.o: ..\config\app_types.h
 .\objects\config_store.o: .\freertos_add\include\FreeRTOS.h
 .\objects\config_store.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stddef.h
 .\objects\config_store.o: .\freertos_add\include\FreeRTOSConfig.h
@@ -40,5 +40,5 @@
 .\objects\config_store.o: .\freertos_add\include\mpu_wrappers.h
 .\objects\config_store.o: .\freertos_add\include\queue.h
 .\objects\config_store.o: .\freertos_add\include\semphr.h
-.\objects\config_store.o: ..\USER\app_config.h
+.\objects\config_store.o: ..\config\app_config.h
 .\objects\config_store.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\string.h

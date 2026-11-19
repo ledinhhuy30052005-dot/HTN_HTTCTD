@@ -1,5 +1,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
+#include "relay.h"
+#include "buzzer.h"
 #include "board.h"
 #include "stm32f10x.h"
 
@@ -7,12 +9,12 @@
  * system reset rather than remaining forever in an interrupt-disabled dead loop. */
 static void fault_safe_reset(void)
 {
-    Board_AllRelaysOff();
-    Board_SetBuzzer(1U);
+    Relay_AllOff();
+    Buzzer_Set(1U);
     Board_DelayMs(100U);
-    Board_SetBuzzer(0U);
+    Buzzer_Set(0U);
     NVIC_SystemReset();
-    for (;;) { Board_AllRelaysOff(); }
+    for (;;) { Relay_AllOff(); }
 }
 
 void vApplicationMallocFailedHook(void)

@@ -54,6 +54,14 @@ typedef struct
     uint32_t dayKey;
 } SensorData_t;
 
+enum
+{
+    SENSOR_UPDATE_FAST  = 0x01U,
+    SENSOR_UPDATE_DHT11  = 0x02U,
+    SENSOR_UPDATE_LIGHT = 0x04U,
+    SENSOR_UPDATE_RTC   = 0x08U
+};
+
 typedef enum
 {
     BUTTON_OK = 0,
@@ -67,6 +75,7 @@ extern QueueHandle_t g_sensorQueue;
 extern QueueHandle_t g_configSaveQueue;
 extern SemaphoreHandle_t g_configMutex;
 extern SemaphoreHandle_t g_i2cMutex;
+extern SemaphoreHandle_t g_sensorDataMutex;
 extern volatile uint8_t g_configSaveState; /* 0 idle, 1 saving, 2 success, 3 error */
 extern volatile uint8_t g_pumpOn;
 extern volatile uint8_t g_fanOn;

@@ -1,5 +1,5 @@
-.\objects\i2c_bus.o: ..\USER\i2c_bus.c
-.\objects\i2c_bus.o: ..\USER\i2c_bus.h
+.\objects\i2c_bus.o: ..\config\i2c_bus.c
+.\objects\i2c_bus.o: ..\config\i2c_bus.h
 .\objects\i2c_bus.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdint.h
 .\objects\i2c_bus.o: .\freertos_add\include\FreeRTOS.h
 .\objects\i2c_bus.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stddef.h
@@ -41,4 +41,4 @@
 .\objects\i2c_bus.o: .\freertos_add\include\queue.h
 .\objects\i2c_bus.o: .\freertos_add\include\task.h
 .\objects\i2c_bus.o: .\freertos_add\include\list.h
-.\objects\i2c_bus.o: ..\USER\board.h
+.\objects\i2c_bus.o: ..\config\board.h

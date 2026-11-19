@@ -1,5 +1,5 @@
-.\objects\app_state.o: ..\USER\app_state.c
-.\objects\app_state.o: ..\USER\app_types.h
+.\objects\app_state.o: ..\config\app_state.c
+.\objects\app_state.o: ..\config\app_types.h
 .\objects\app_state.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdint.h
 .\objects\app_state.o: .\freertos_add\include\FreeRTOS.h
 .\objects\app_state.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stddef.h
@@ -39,7 +39,11 @@
 .\objects\app_state.o: .\freertos_add\include\mpu_wrappers.h
 .\objects\app_state.o: .\freertos_add\include\queue.h
 .\objects\app_state.o: .\freertos_add\include\semphr.h
-.\objects\app_state.o: ..\USER\app_config.h
+.\objects\app_state.o: ..\config\app_state.h
+.\objects\app_state.o: ..\config\app_config.h
 .\objects\app_state.o: .\freertos_add\include\task.h
 .\objects\app_state.o: .\freertos_add\include\list.h
+.\objects\app_state.o: ..\config\i2c_bus.h
+.\objects\app_state.o: ..\config\config_store.h
+.\objects\app_state.o: ..\config\sensors.h
 .\objects\app_state.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\string.h

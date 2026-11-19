@@ -1,7 +1,7 @@
-.\objects\ds3231.o: ..\USER\ds3231.c
-.\objects\ds3231.o: ..\USER\ds3231.h
+.\objects\ds3231.o: ..\config\ds3231.c
+.\objects\ds3231.o: ..\config\ds3231.h
 .\objects\ds3231.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdint.h
-.\objects\ds3231.o: ..\USER\i2c_bus.h
+.\objects\ds3231.o: ..\config\i2c_bus.h
 .\objects\ds3231.o: .\freertos_add\include\FreeRTOS.h
 .\objects\ds3231.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stddef.h
 .\objects\ds3231.o: .\freertos_add\include\FreeRTOSConfig.h

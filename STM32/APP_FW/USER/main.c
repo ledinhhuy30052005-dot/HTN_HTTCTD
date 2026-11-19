@@ -2,25 +2,48 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "board.h"
-#include "app_tasks.h"
+#include "analog_input.h"
+#include "relay.h"
+#include "buzzer.h"
+#include "taskN1.h"
+#include "taskN2.h"
+#include "taskN3.h"
 
 int main(void)
 {
-    /* The application is linked at 0x0800C800. This also protects interrupt
-     * vector lookup when the bootloader jumps to the application. VECT_TAB_OFFSET
-     * is defined in the Keil project as 0xC800 for SystemInit(). */
+    /* Application is linked at 0x0800C800. Bootloader is kept at 0x08000000. */
     SCB->VTOR = 0x0800C800UL;
     SystemCoreClockUpdate();
 
     Board_Init();
-    (void)Board_ADC_Init();
+    if (!AnalogInput_Init())
+    {
+        Relay_AllOff();
+        Buzzer_Set(1U);
+        Board_DelayMs(100U);
+        Buzzer_Set(0U);
+        NVIC_SystemReset();
+        for (;;) { Relay_AllOff(); }
+    }
     Board_I2C1_Init();
 
-    App_CreateTasks();
-    vTaskStartScheduler();
+    /* Shared queues/mutexes/configuration are ready before task creation. */
+    if (!TaskN3_InitShared() ||
+        TaskN1_Create() != pdPASS ||
+        TaskN2_Create() != pdPASS ||
+        TaskN3_Create() != pdPASS)
+    {
+        Relay_AllOff();
+        Buzzer_Set(1U);
+        Board_DelayMs(100U);
+        Buzzer_Set(0U);
+        NVIC_SystemReset();
+        for (;;) { Relay_AllOff(); }
+    }
 
+    vTaskStartScheduler();
     /* Reaching here means FreeRTOS could not allocate its idle task/heap. */
-    Board_AllRelaysOff();
-    Board_SetBuzzer(0U);
-    for (;;) { /* Scheduler failed: keep all outputs safe. PC13 belongs to bootloader OTA status only. */ }
+    Relay_AllOff();
+    Buzzer_Set(0U);
+    for (;;) { }
 }

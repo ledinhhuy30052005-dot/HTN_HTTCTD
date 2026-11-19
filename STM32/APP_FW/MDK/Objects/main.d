@@ -1,4 +1,4 @@
-.\objects\main.o: ..\USER\main.c
+.\objects\main.o: ..\user\main.c
 .\objects\main.o: .\Lib\CMSIS\CM3\DeviceSupport\ST\STM32F10x\stm32f10x.h
 .\objects\main.o: .\Lib\CMSIS\CM3\CoreSupport\core_cm3.h
 .\objects\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdint.h
@@ -38,5 +38,10 @@
 .\objects\main.o: .\freertos_add\include\mpu_wrappers.h
 .\objects\main.o: .\freertos_add\include\task.h
 .\objects\main.o: .\freertos_add\include\list.h
-.\objects\main.o: ..\USER\board.h
-.\objects\main.o: ..\USER\app_tasks.h
+.\objects\main.o: ..\config\board.h
+.\objects\main.o: ..\config\analog_input.h
+.\objects\main.o: ..\config\relay.h
+.\objects\main.o: ..\config\buzzer.h
+.\objects\main.o: ..\task\taskN1.h
+.\objects\main.o: ..\task\taskN2.h
+.\objects\main.o: ..\task\taskN3.h

@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include "app_types.h"
 void Sensors_Init(void);
+uint8_t Sensors_InitLight(void);
 void Sensors_ReadFast(SensorData_t *data);
 void Sensors_ReadDHT11(SensorData_t *data);
 void Sensors_ReadLight(SensorData_t *data);

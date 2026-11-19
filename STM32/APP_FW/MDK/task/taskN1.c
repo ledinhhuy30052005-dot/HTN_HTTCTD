@@ -1,345 +1,20 @@
-#include "app_tasks.h"
+#include "taskN1.h"
+#include "app_state.h"
+#include "sensors.h"
+#include "oled.h"
+#include "ds3231.h"
+#include "i2c_bus.h"
 #include "app_types.h"
 #include "app_config.h"
 #include "app_state.h"
 #include "board.h"
-#include "i2c_bus.h"
-#include "sensors.h"
-#include "oled.h"
-#include "config_store.h"
-#include "ds3231.h"
-#include "dht11.h"
 #include "task.h"
 #include "queue.h"
 #include "semphr.h"
-#include "misc.h"
+#include "config_store.h"
 #include <string.h>
 #include <stdio.h>
-
-/* ---------------------------- Task prototypes ---------------------------- */
-static void SensorTask(void *argument);
-static void ControlTask(void *argument);
-static void ButtonTask(void *argument);
-static void UITask(void *argument);
-static void ConfigTask(void *argument);
-static void HealthTask(void *argument);
-
-/* Heartbeats are updated by each task. HealthTask requests a safe reset if a task
- * stops making progress for several seconds (for example, after a driver/stack fault). */
-enum { HB_SENSOR = 0, HB_CONTROL, HB_BUTTON, HB_UI, HB_CONFIG, HB_COUNT };
-static volatile uint32_t s_taskHeartbeat[HB_COUNT] = {0U};
-
-void App_CreateTasks(void)
-{
-    AppConfig_t initialConfig;
-
-    g_buttonQueue = xQueueCreate(8U, sizeof(ButtonEvent_t));
-    g_sensorQueue = xQueueCreate(1U, sizeof(SensorData_t));
-    g_configSaveQueue = xQueueCreate(1U, sizeof(AppConfig_t));
-    g_configMutex = xSemaphoreCreateMutex();
-    g_i2cMutex = xSemaphoreCreateMutex();
-
-    if ((g_buttonQueue == NULL) || (g_sensorQueue == NULL) ||
-        (g_configSaveQueue == NULL) ||
-        (g_configMutex == NULL) || (g_i2cMutex == NULL))
-    {
-        Board_AllRelaysOff();
-        Board_SetBuzzer(1U);
-        Board_DelayMs(100U);
-        Board_SetBuzzer(0U);
-        NVIC_SystemReset();
-        for (;;) { Board_AllRelaysOff(); }
-    }
-
-    I2C1_SetMutex(g_i2cMutex);
-    ConfigStore_Load(&initialConfig);
-    AppConfig_SetActive(&initialConfig);
-
-    /* I2C device drivers are used by SensorTask/UITask after the scheduler starts.
-     * Application UART communication is intentionally disabled: OTA is entered by
-     * manually resetting STM32 and sending firmware to the bootloader from ESP32. */
-
-    /* Stack sizes are in StackType_t words (4 bytes on Cortex-M3). UI uses snprintf
-     * and OLED/I2C call chains, so give it a larger stack to avoid intermittent overflow. */
-    if (xTaskCreate(SensorTask, "Sensor", 384U, NULL, 3U, NULL) != pdPASS ||
-        xTaskCreate(ControlTask, "Control", 448U, NULL, 4U, NULL) != pdPASS ||
-        xTaskCreate(ButtonTask, "Buttons", 192U, NULL, 2U, NULL) != pdPASS ||
-        xTaskCreate(UITask, "OLED_Menu", 640U, NULL, 1U, NULL) != pdPASS ||
-        xTaskCreate(ConfigTask, "Config", 320U, NULL, 2U, NULL) != pdPASS ||
-        xTaskCreate(HealthTask, "Health", 192U, NULL, 4U, NULL) != pdPASS)
-    {
-        Board_AllRelaysOff();
-        Board_SetBuzzer(1U);
-        Board_DelayMs(100U);
-        Board_SetBuzzer(0U);
-        NVIC_SystemReset();
-        for (;;) { Board_AllRelaysOff(); }
-    }
-}
-
-static void SensorTask(void *argument)
-{
-    SensorData_t data;
-    TickType_t lastWake;
-    TickType_t lastDht = 0U;
-    TickType_t lastLight = 0U;
-    TickType_t lastRtc = 0U;
-    (void)argument;
-    memset(&data, 0, sizeof(data));
-    Sensors_Init();
-    lastWake = xTaskGetTickCount();
-    for (;;)
-    {
-        TickType_t now = xTaskGetTickCount();
-        Sensors_ReadFast(&data);
-        /* Publish soil/water readings immediately. Slow DHT/I2C transactions below must
-         * not postpone the fast safety interlock used by ControlTask. */
-        (void)xQueueOverwrite(g_sensorQueue, &data);
-        s_taskHeartbeat[HB_SENSOR]++;
-        if ((now - lastDht) >= pdMS_TO_TICKS(DHT11_PERIOD_MS))
-        {
-            Sensors_ReadDHT11(&data);
-            lastDht = now;
-        }
-        if ((now - lastLight) >= pdMS_TO_TICKS(BH1750_PERIOD_MS))
-        {
-            Sensors_ReadLight(&data);
-            lastLight = now;
-        }
-        if ((now - lastRtc) >= pdMS_TO_TICKS(RTC_READ_PERIOD_MS))
-        {
-            Sensors_ReadRTC(&data);
-            lastRtc = now;
-        }
-        (void)xQueueOverwrite(g_sensorQueue, &data);
-        vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(SENSOR_TASK_PERIOD_MS));
-    }
-}
-
-static void pump_set(uint8_t on)
-{
-    Board_SetPump(on);
-    g_pumpOn = on;
-}
-
-static void ControlTask(void *argument)
-{
-    SensorData_t sensor;
-    AppConfig_t cfg;
-    uint8_t haveSensor = 0U;
-    uint8_t pumpMode = 0U; /* 0 off, 1 soil-auto, 2 scheduled, 3 manual */
-    TickType_t pumpStarted = 0U;
-    TickType_t lastAutoEnd = 0U;
-    uint32_t lastScheduleKey = 0xFFFFFFFFUL;
-    uint8_t fanState = 0U;
-    uint8_t lampState = 0U;
-    uint8_t previousTankLow = 0U;
-    uint8_t buzzerPulseActive = 0U;
-    TickType_t buzzerPulseStart = 0U;
-    TickType_t lastWake = xTaskGetTickCount();
-    (void)argument;
-    memset(&sensor, 0, sizeof(sensor));
-    lastAutoEnd = xTaskGetTickCount() - pdMS_TO_TICKS(SOIL_WATER_COOLDOWN_SEC * 1000U);
-    pump_set(0U);
-    Board_SetFan(0U);
-    Board_SetLamp(0U);
-    for (;;)
-    {
-        TickType_t now = xTaskGetTickCount();
-        uint8_t thermalDryBlock;
-        uint8_t tankOK;
-        uint8_t scheduleDue = 0U;
-        uint8_t soilDry;
-        uint8_t cooldownDone;
-        uint32_t minuteOfDay = 0U;
-        uint32_t scheduleKey = 0U;
-        s_taskHeartbeat[HB_CONTROL]++;
-        if (xQueuePeek(g_sensorQueue, &sensor, 0U) == pdTRUE) haveSensor = 1U;
-        AppConfig_GetActive(&cfg);
-
-        if (haveSensor && sensor.rtcValid)
-        {
-            minuteOfDay = ((uint32_t)sensor.hour * 60UL) + sensor.minute;
-            scheduleKey = (sensor.dayKey * 1440UL) + minuteOfDay;
-            if (!g_manualMode && (sensor.second <= 5U) && (scheduleKey != lastScheduleKey) &&
-                ((minuteOfDay == cfg.schedule1Minute) || (minuteOfDay == cfg.schedule2Minute)))
-            {
-                scheduleDue = 1U;
-                lastScheduleKey = scheduleKey; /* one attempt per scheduled minute */
-            }
-        }
-
-        /* Interlocks: chi con 2 dieu kien khoa bom
-         *  - het nuoc (cam bien muc nuoc PA2 duoi nguong): chong chay kho
-         *  - nong va dat kho (chi xet khi DHT11 doc duoc)
-         * DHT11 loi KHONG con khoa bom nua; khi cam bien loi chi khong ap dung khoa nhiet. */
-        tankOK = (haveSensor && sensor.waterOK) ? 1U : 0U;
-        thermalDryBlock = (haveSensor && sensor.temperatureValid &&
-                           (sensor.temperatureC >= (int16_t)cfg.waterBlockTempC) &&
-                           (sensor.soilPercent <= (uint8_t)cfg.soilOnPercent)) ? 1U : 0U;
-        soilDry = (haveSensor && (sensor.soilPercent <= (uint8_t)cfg.soilOnPercent)) ? 1U : 0U;
-        cooldownDone = ((now - lastAutoEnd) >= pdMS_TO_TICKS(SOIL_WATER_COOLDOWN_SEC * 1000U)) ? 1U : 0U;
-        /* Do not announce tank-low until at least one sensor snapshot exists. */
-        g_tankLowAlarm = (haveSensor && !tankOK) ? 1U : 0U;
-
-        /* Schedule has priority over the ordinary soil-based cycle. It ignores soil
-         * moisture, but tank-low and hot+dry interlocks still stop the pump for safety. */
-        if (scheduleDue)
-        {
-            if (tankOK && !thermalDryBlock)
-            {
-                pumpMode = 2U;
-                pumpStarted = now;
-                pump_set(1U);
-            }
-            else
-            {
-                /* Marked as attempted, so it will not repeatedly start in this minute. */
-                pumpMode = 0U;
-                pump_set(0U);
-            }
-        }
-
-        if (pumpMode != 0U)
-        {
-            uint8_t mustStop = 0U;
-            if (!tankOK || thermalDryBlock) mustStop = 1U;
-            if ((pumpMode == 1U) && (sensor.soilPercent >= (uint8_t)cfg.soilOffPercent)) mustStop = 1U;
-            if ((pumpMode == 3U) && !g_manualPumpRequest) mustStop = 1U;
-            if ((now - pumpStarted) >= pdMS_TO_TICKS(WATERING_PULSE_SECONDS * 1000U)) mustStop = 1U;
-            if (mustStop)
-            {
-                pump_set(0U);
-                /* All automatic watering pulses observe the short soak interval, so a
-                 * scheduled pulse cannot immediately chain into another soil pulse. */
-                if (pumpMode == 1U || pumpMode == 2U) lastAutoEnd = now;
-                if (pumpMode == 3U) g_manualPumpRequest = 0U; /* manual pump is one 10 s pulse */
-                pumpMode = 0U;
-            }
-        }
-
-        if (pumpMode == 0U)
-        {
-            if (!tankOK || thermalDryBlock)
-            {
-                pump_set(0U);
-                if (g_manualMode) g_manualPumpRequest = 0U;
-            }
-            else if (g_manualMode && g_manualPumpRequest)
-            {
-                pumpMode = 3U;
-                pumpStarted = now;
-                pump_set(1U);
-            }
-            else if (!g_manualMode && !scheduleDue && soilDry && cooldownDone)
-            {
-                pumpMode = 1U;
-                pumpStarted = now;
-                pump_set(1U);
-            }
-        }
-
-        /* Trang thai bom de hien thi tren OLED. */
-        if (g_pumpOn)               g_pumpStatus = (pumpMode == 3U) ? PUMP_ST_MANUAL : PUMP_ST_WATERING;
-        else if (!tankOK)           g_pumpStatus = PUMP_ST_TANK_LOW;
-        else if (thermalDryBlock)   g_pumpStatus = PUMP_ST_HOT_DRY;
-        else if (!g_manualMode && soilDry && !cooldownDone) g_pumpStatus = PUMP_ST_COOLDOWN;
-        else                        g_pumpStatus = PUMP_ST_IDLE;
-
-        /* Fan automatic control uses a 2 C hysteresis to avoid relay chatter. */
-        if (g_manualMode)
-        {
-            fanState = g_manualFanRequest;
-            lampState = g_manualLampRequest;
-        }
-        else
-        {
-            if (haveSensor && sensor.temperatureValid)
-            {
-                if (sensor.temperatureC >= (int16_t)cfg.fanOnTempC) fanState = 1U;
-                else if (sensor.temperatureC <= ((int16_t)cfg.fanOnTempC - 2)) fanState = 0U;
-            }
-            if (haveSensor && sensor.lightValid)
-            {
-                if (sensor.lightLux < cfg.lightOnLux) lampState = 1U;
-                else if (sensor.lightLux > (cfg.lightOnLux + 20U)) lampState = 0U;
-            }
-        }
-        Board_SetFan(fanState);
-        Board_SetLamp(lampState);
-        g_fanOn = fanState;
-        g_lampOn = lampState;
-        /* Buzzer: a single 5-second alarm on the transition to tank-low.
-         * PC13 is deliberately not used by the application; bootloader owns it for OTA success. */
-        if (g_tankLowAlarm && !previousTankLow)
-        {
-            buzzerPulseActive = 1U;
-            buzzerPulseStart = now;
-        }
-        if (buzzerPulseActive &&
-            ((now - buzzerPulseStart) >= pdMS_TO_TICKS(TANK_LOW_BEEP_MS)))
-        {
-            buzzerPulseActive = 0U;
-        }
-        Board_SetBuzzer(buzzerPulseActive);
-        previousTankLow = g_tankLowAlarm;
-        vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(CONTROL_TASK_PERIOD_MS));
-    }
-}
-
-static void ButtonTask(void *argument)
-{
-    uint8_t previousRaw[4] = {0U,0U,0U,0U};
-    uint8_t stableState[4] = {0U,0U,0U,0U};
-    uint8_t count[4] = {0U,0U,0U,0U};
-    uint8_t i;
-    (void)argument;
-    for (;;)
-    {
-        s_taskHeartbeat[HB_BUTTON]++;
-        for (i = 0U; i < 4U; i++)
-        {
-            uint8_t raw = Board_ButtonPressed(i);
-            if (raw == previousRaw[i])
-            {
-                if (count[i] < 3U) count[i]++;
-                if ((count[i] >= 3U) && (stableState[i] != raw))
-                {
-                    stableState[i] = raw;
-                    if (raw)
-                    {
-                        ButtonEvent_t ev = (ButtonEvent_t)i;
-                        (void)xQueueSend(g_buttonQueue, &ev, 0U);
-                    }
-                }
-            }
-            else
-            {
-                previousRaw[i] = raw;
-                count[i] = 0U;
-            }
-        }
-        vTaskDelay(pdMS_TO_TICKS(BUTTON_SCAN_PERIOD_MS));
-    }
-}
-
-static void ConfigTask(void *argument)
-{
-    AppConfig_t cfg;
-    (void)argument;
-    for (;;)
-    {
-        s_taskHeartbeat[HB_CONFIG]++;
-        if (xQueueReceive(g_configSaveQueue, &cfg, pdMS_TO_TICKS(500U)) == pdTRUE)
-        {
-            g_configSaveState = 1U;
-            if (ConfigStore_Save(&cfg)) g_configSaveState = 2U;
-            else g_configSaveState = 3U;
-            vTaskDelay(pdMS_TO_TICKS(1500U));
-            g_configSaveState = 0U;
-        }
-    }
-}
+#include <stdint.h>
 
 #define MENU_ITEM_COUNT 13U
 static uint8_t s_menuIndex = 0U;
@@ -602,6 +277,36 @@ static void show_home(const SensorData_t *s, uint8_t page)
     }
 }
 
+static void TaskN1_I2CSensorTask(void *argument)
+{
+    SensorData_t update;
+    TickType_t lastWake = xTaskGetTickCount();
+    TickType_t lastLight = lastWake;
+    TickType_t lastRtc = lastWake;
+    (void)argument;
+    (void)Sensors_InitLight();
+    for (;;)
+    {
+        TickType_t now = xTaskGetTickCount();
+        if ((now - lastLight) >= pdMS_TO_TICKS(BH1750_PERIOD_MS))
+        {
+            AppSensor_GetSnapshot(&update);
+            Sensors_ReadLight(&update);
+            AppSensor_Update(&update, SENSOR_UPDATE_LIGHT);
+            lastLight = now;
+        }
+        if ((now - lastRtc) >= pdMS_TO_TICKS(RTC_READ_PERIOD_MS))
+        {
+            AppSensor_GetSnapshot(&update);
+            Sensors_ReadRTC(&update);
+            AppSensor_Update(&update, SENSOR_UPDATE_RTC);
+            lastRtc = now;
+        }
+        AppHeartbeat_Increment(APP_HB_I2C_SENSOR);
+        vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(25U));
+    }
+}
+
 static void UITask(void *argument)
 {
     ButtonEvent_t event;
@@ -619,13 +324,13 @@ static void UITask(void *argument)
     lastOledTry = lastWake;
     for (;;)
     {
-        s_taskHeartbeat[HB_UI]++;
+        AppHeartbeat_Increment(APP_HB_UI);
         if (!OLED_IsReady() && ((xTaskGetTickCount() - lastOledTry) >= pdMS_TO_TICKS(1000U)))
         {
             (void)OLED_Init();          /* chua co OLED / mat ket noi: thu lai moi giay */
             lastOledTry = xTaskGetTickCount();
         }
-        if (xQueuePeek(g_sensorQueue, &sensor, 0U) != pdTRUE) memset(&sensor, 0, sizeof(sensor));
+        AppSensor_GetSnapshot(&sensor);
         if (xQueueReceive(g_buttonQueue, &event, 0U) == pdTRUE)
         {
             if (!inMenu)
@@ -705,38 +410,9 @@ static void UITask(void *argument)
         vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(DISPLAY_REFRESH_MS));
     }
 }
-
-/* A small software supervisor catches tasks that get stuck waiting in a driver.
- * It does not replace an independent watchdog for a total CPU/clock failure, but it
- * can recover from a single application task that stops progressing. */
-static void HealthTask(void *argument)
+BaseType_t TaskN1_Create(void)
 {
-    uint32_t previous[HB_COUNT];
-    uint8_t stale[HB_COUNT] = {0U};
-    uint8_t i;
-    (void)argument;
-    for (i = 0U; i < HB_COUNT; i++) previous[i] = s_taskHeartbeat[i];
-    for (;;)
-    {
-        vTaskDelay(pdMS_TO_TICKS(1000U));
-        for (i = 0U; i < HB_COUNT; i++)
-        {
-            uint32_t current = s_taskHeartbeat[i];
-            if (current == previous[i])
-            {
-                if (stale[i] < 3U) stale[i]++;
-            }
-            else stale[i] = 0U;
-            previous[i] = current;
-            if (stale[i] >= 3U)
-            {
-                Board_AllRelaysOff();
-                Board_SetBuzzer(1U);
-                Board_DelayMs(100U);
-                Board_SetBuzzer(0U);
-                NVIC_SystemReset();
-                for (;;) { Board_AllRelaysOff(); }
-            }
-        }
-    }
+    if (xTaskCreate(TaskN1_I2CSensorTask, "I2CSensors", 320U, NULL, 2U, NULL) != pdPASS) return pdFAIL;
+    if (xTaskCreate(UITask, "OLED_Menu", 640U, NULL, 1U, NULL) != pdPASS) return pdFAIL;
+    return pdPASS;
 }
