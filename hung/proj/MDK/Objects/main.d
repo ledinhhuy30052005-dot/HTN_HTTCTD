@@ -1,6 +1,4 @@
 .\objects\main.o: ..\USER\main.c
-.\objects\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdio.h
-.\objects\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\string.h
 .\objects\main.o: .\Lib\CMSIS\CM3\DeviceSupport\ST\STM32F10x\stm32f10x.h
 .\objects\main.o: .\Lib\CMSIS\CM3\CoreSupport\core_cm3.h
 .\objects\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdint.h
@@ -30,9 +28,6 @@
 .\objects\main.o: .\Lib\STM32F10x_StdPeriph_Driver\inc\stm32f10x_usart.h
 .\objects\main.o: .\Lib\STM32F10x_StdPeriph_Driver\inc\stm32f10x_wwdg.h
 .\objects\main.o: .\Lib\STM32F10x_StdPeriph_Driver\inc\misc.h
-.\objects\main.o: ..\USER\board.h
-.\objects\main.o: ..\USER\app_config.h
-.\objects\main.o: ..\USER\app_types.h
 .\objects\main.o: .\freertos_add\include\FreeRTOS.h
 .\objects\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stddef.h
 .\objects\main.o: .\freertos_add\include\FreeRTOSConfig.h
@@ -41,7 +36,7 @@
 .\objects\main.o: .\freertos_add\include\deprecated_definitions.h
 .\objects\main.o: .\freertos_add\include\portmacro.h
 .\objects\main.o: .\freertos_add\include\mpu_wrappers.h
-.\objects\main.o: .\freertos_add\include\queue.h
-.\objects\main.o: .\freertos_add\include\semphr.h
-.\objects\main.o: ..\USER\sensors.h
-.\objects\main.o: ..\USER\oled.h
+.\objects\main.o: .\freertos_add\include\task.h
+.\objects\main.o: .\freertos_add\include\list.h
+.\objects\main.o: ..\USER\board.h
+.\objects\main.o: ..\USER\app_tasks.h

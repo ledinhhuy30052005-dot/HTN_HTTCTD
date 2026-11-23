@@ -45,7 +45,7 @@ void Board_Init(void)
     g.GPIO_Pin = GPIO_Pin_0;
     GPIO_Init(GPIOB, &g);
 
-    /* DHT22 on PA3; set to open-drain idle high. */
+    /* DHT11 data on PA3; set to open-drain idle high. */
     g.GPIO_Pin = GPIO_Pin_3;
     g.GPIO_Speed = GPIO_Speed_2MHz;
     g.GPIO_Mode = GPIO_Mode_Out_OD;

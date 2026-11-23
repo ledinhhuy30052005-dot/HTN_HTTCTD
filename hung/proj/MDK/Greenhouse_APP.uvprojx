@@ -10,7 +10,7 @@
       <TargetName>Greenhouse_APP</TargetName>
       <ToolsetNumber>0x4</ToolsetNumber>
       <ToolsetName>ARM-ADS</ToolsetName>
-      <pCCUsed>5060750::V5.06 update 6 (build 750)::ARMCC</pCCUsed>
+      <pCCUsed>5060061::V5.06 update 1 (build 61)::ARMCC</pCCUsed>
       <uAC6>0</uAC6>
       <TargetOption>
         <TargetCommonOption>
@@ -383,21 +383,6 @@
           <GroupName>user</GroupName>
           <Files>
             <File>
-              <FileName>app_config.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\USER\app_config.h</FilePath>
-            </File>
-            <File>
-              <FileName>app_state.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\USER\app_state.c</FilePath>
-            </File>
-            <File>
-              <FileName>app_state.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\USER\app_state.h</FilePath>
-            </File>
-            <File>
               <FileName>app_tasks.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\USER\app_tasks.c</FilePath>
@@ -406,11 +391,6 @@
               <FileName>app_tasks.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\USER\app_tasks.h</FilePath>
-            </File>
-            <File>
-              <FileName>app_types.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\USER\app_types.h</FilePath>
             </File>
             <File>
               <FileName>bh1750.c</FileName>
@@ -431,41 +411,6 @@
               <FileName>board.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\USER\board.h</FilePath>
-            </File>
-            <File>
-              <FileName>config_store.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\USER\config_store.c</FilePath>
-            </File>
-            <File>
-              <FileName>config_store.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\USER\config_store.h</FilePath>
-            </File>
-            <File>
-              <FileName>dht22.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\USER\dht22.c</FilePath>
-            </File>
-            <File>
-              <FileName>dht22.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\USER\dht22.h</FilePath>
-            </File>
-            <File>
-              <FileName>ds3231.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\USER\ds3231.c</FilePath>
-            </File>
-            <File>
-              <FileName>ds3231.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\USER\ds3231.h</FilePath>
-            </File>
-            <File>
-              <FileName>freertos_hooks.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\USER\freertos_hooks.c</FilePath>
             </File>
             <File>
               <FileName>i2c_bus.c</FileName>
@@ -493,14 +438,24 @@
               <FilePath>..\USER\oled.h</FilePath>
             </File>
             <File>
-              <FileName>sensors.c</FileName>
+              <FileName>dht11.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\USER\sensors.c</FilePath>
+              <FilePath>..\USER\\dht11.c</FilePath>
             </File>
             <File>
-              <FileName>sensors.h</FileName>
+              <FileName>dht11.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\USER\sensors.h</FilePath>
+              <FilePath>..\USER\\dht11.h</FilePath>
+            </File>
+            <File>
+              <FileName>app_config.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\USER\app_config.h</FilePath>
+            </File>
+            <File>
+              <FileName>freertos_hooks.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\USER\freertos_hooks.c</FilePath>
             </File>
           </Files>
         </Group>
